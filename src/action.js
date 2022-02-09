@@ -46,11 +46,10 @@ async function action() {
     const client = github.getOctokit(core.getInput("token"));
 
     if (debugMode) core.info(`reportPaths: ${reportPaths}`);
-    const reportsJsonAsync = getJsonReports(reportPaths, fail_on_read);
+    const reportsJson = await getJsonReports(reportPaths, fail_on_read, debugMode);
     const changedFiles = await getChangedFiles(base, head, client);
     if (debugMode) core.info(`changedFiles: ${debug(changedFiles)}`);
 
-    const reportsJson = await reportsJsonAsync;
     if (debugMode) core.info(`report value: ${debug(reportsJson)}`);
     const reports = reportsJson.map((report) => report["report"]);
 
@@ -90,21 +89,27 @@ function debug(obj) {
   return JSON.stringify(obj, " ", 4);
 }
 
-async function getJsonReports(xmlPaths, fail_on_read = false) {
-  const files = Promise.all(
-    xmlPaths.map(async (xmlPath) => {
+async function getJsonReports(xmlPaths, fail_on_read, debugMode) {
+  try {
+    const files = await Promise.all(xmlPaths.map(async (xmlPath) => {
       try {
-        const reportXml = await fs.promises.readFile(xmlPath.trim(), "utf-8");
+        xmlPath = xmlPath.trim();
+        if (debugMode) core.info(`manage file ${xmlPath}`);
+        const reportXml = await fs.promises.readFile(xmlPath, "utf-8");
         return await parser.parseStringPromise(reportXml);
       } catch(e) {
+        if (debugMode) core.info(`manage file ${xmlPath}, error ${e}`);
         if (!!fail_on_read) throw e;
         return null;
       }
-    })
-  );
+    }) );
 
-  //get every valid content
-  return (await files).filter(c => !!c);
+    //get every valid content
+    return files.filter(c => !!c);
+  } catch(e) {
+    if (debugMode) core.info(`manage files error ${e}`);
+    return [];
+  }
 }
 
 async function getChangedFiles(base, head, client) {
