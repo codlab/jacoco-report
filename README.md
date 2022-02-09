@@ -17,6 +17,7 @@ Create a workflow `.yml` file in your repositories `.github/workflows` directory
 - `min-coverage-overall` - [*optional*] The minimum code coverage that is required to pass for overall project
 - `min-coverage-changed-files` - [*optional*] The minimum code coverage that is required to pass for changed files
 - `title` - [*optional*] Title for the Pull Request comment
+- `fail-on-read` - [*optional*] Force every files to be valid when read, default false
 
 ### Outputs
 

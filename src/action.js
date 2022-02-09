@@ -10,6 +10,7 @@ async function action() {
   try {
     const pathsString = core.getInput("paths");
     const reportPaths = pathsString.split(",");
+    const fail_on_read = core.getInput("fail-on-read") === "true"
     const minCoverageOverall = parseFloat(
       core.getInput("min-coverage-overall")
     );
@@ -45,7 +46,7 @@ async function action() {
     const client = github.getOctokit(core.getInput("token"));
 
     if (debugMode) core.info(`reportPaths: ${reportPaths}`);
-    const reportsJsonAsync = getJsonReports(reportPaths);
+    const reportsJsonAsync = getJsonReports(reportPaths, fail_on_read);
     const changedFiles = await getChangedFiles(base, head, client);
     if (debugMode) core.info(`changedFiles: ${debug(changedFiles)}`);
 
@@ -89,13 +90,21 @@ function debug(obj) {
   return JSON.stringify(obj, " ", 4);
 }
 
-async function getJsonReports(xmlPaths) {
-  return Promise.all(
+async function getJsonReports(xmlPaths, fail_on_read = false) {
+  const files = Promise.all(
     xmlPaths.map(async (xmlPath) => {
-      const reportXml = await fs.promises.readFile(xmlPath.trim(), "utf-8");
-      return await parser.parseStringPromise(reportXml);
+      try {
+        const reportXml = await fs.promises.readFile(xmlPath.trim(), "utf-8");
+        return await parser.parseStringPromise(reportXml);
+      } catch(e) {
+        if (!!fail_on_read) throw e;
+        return null;
+      }
     })
   );
+
+  //get every valid content
+  return (await files).filter(c => !!c);
 }
 
 async function getChangedFiles(base, head, client) {
